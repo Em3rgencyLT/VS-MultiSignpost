@@ -1,0 +1,42 @@
+{
+  "code": "multisignpost-extension",
+  "class": "multisignpost.blockMultiSignPostExtension",
+  "entityClass": "multisignpost.multiSignPostExtension",
+  "shape": { "base": "multisignpost:block/wood/signpost/extension" },
+  "blockmaterial": "Wood",
+  "resistance": 2,
+  "replaceable": 0,
+  "lightAbsorption": 0,
+  "drops": [],
+  "faceCullMode": "NeverCull",
+  "sideopaque": {
+    "all": false
+  },
+  "sidesolid": {
+    "all": false
+  },
+  "sounds": {
+    "place": "game:block/planks",
+    "hit": "game:block/planks",
+    "break": "game:block/planks",
+    "walk": "game:walk/wood"
+  },
+  "rainPermeable": true,
+  "materialDensity": 600,
+  "selectionBox": {
+    "x1": 0.25,
+    "y1": 0,
+    "z1": 0.25,
+    "x2": 0.75,
+    "y2": 1,
+    "z2": 0.75
+  },
+  "collisionBox": {
+    "x1": 0.4375,
+    "y1": 0,
+    "z1": 0.4375,
+    "x2": 0.5625,
+    "y2": 1,
+    "z2": 0.5625
+  }
+}

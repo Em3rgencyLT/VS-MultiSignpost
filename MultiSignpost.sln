@@ -1,0 +1,31 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.14.36908.2 d17.14
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MultiSignpost", "MultiSignpost\MultiSignpost.csproj", "{5415A126-0460-4D8E-A848-98429F316097}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CakeBuild", "ZZCakeBuild\CakeBuild.csproj", "{31C6E1BA-132A-403A-913F-918BC362629B}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{5415A126-0460-4D8E-A848-98429F316097}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{5415A126-0460-4D8E-A848-98429F316097}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{5415A126-0460-4D8E-A848-98429F316097}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{5415A126-0460-4D8E-A848-98429F316097}.Release|Any CPU.Build.0 = Release|Any CPU
+		{31C6E1BA-132A-403A-913F-918BC362629B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{31C6E1BA-132A-403A-913F-918BC362629B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{31C6E1BA-132A-403A-913F-918BC362629B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{31C6E1BA-132A-403A-913F-918BC362629B}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {5B9039F3-0010-4392-8EB0-49E824A5AD63}
+	EndGlobalSection
+EndGlobal
