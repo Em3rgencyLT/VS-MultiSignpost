@@ -1,0 +1,26 @@
+{
+  "multisignpost:block-multisignpost": "Daugiarodyklis Ženklas",
+
+  "multisignpost:dialog-title": "Daugiarodyklio ženklo teksto keitimas",
+
+  "multisignpost:direction-north": "Šiaurė",
+  "multisignpost:direction-northeast": "Šiaurės Rytai",
+  "multisignpost:direction-east": "Rytai",
+  "multisignpost:direction-southeast": "Pietryčiai",
+  "multisignpost:direction-south": "Pietūs",
+  "multisignpost:direction-southwest": "Pietvakariai",
+  "multisignpost:direction-west": "Vakarai",
+  "multisignpost:direction-northwest": "Šiaurės Vakarai",
+
+  "multisignpost:button-add-arrow": "+ Pridėti Rodyklę",
+  "multisignpost:button-remove-empty": "Pašalinti Tuščius",
+
+  "multisignpost:warning-extension-limit": "Šiam ženklui papildomai reikia {0} sekcijų(os), tačiau serverio limitas yra {1}.",
+  "multisignpost:warning-not-enough-space": "Virš ženklo nepakanka tuščios erdvės. Reikia, kad {0} kaladėlė(s) virš ženklo būtų laisvos prieš išsaugant pakeitimus.",
+  "multisignpost:warning-will-create-extensions": "Šis ženklas išsiplės {0} kaladėle(ėmis) į viršų.",
+
+  "multisignpost:chat-extension-limit": "Šis ženklas viršija serverio maksimaliai leistiną papildomų sekcijų skaičių.",
+  "multisignpost:chat-not-enough-space": "Virš ženklo nepakanka tuščios erdvės.",
+
+  "placefailure-cant-place-multisignpost-extension": "Daugiarodylio ženklo papildomos sekcijos kaladėlės negali būti statomos rankiniu būdu."
+}

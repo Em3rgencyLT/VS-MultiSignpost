@@ -26,18 +26,6 @@ public class BlockEntityMultiSignPost : BlockEntity
     public static readonly AssetLocation ExtensionBlockCode =
         new AssetLocation("multisignpost", "multisignpost-extension");
 
-    public static readonly string[] DirectionLabels =
-    {
-        "North",
-        "Northeast",
-        "East",
-        "Southeast",
-        "South",
-        "Southwest",
-        "West",
-        "Northwest"
-    };
-
     public readonly List<string>[] TextByDirection = CreateEmptyTextByDirection();
 
     private List<string>[] previewTextByDirection;
@@ -154,8 +142,8 @@ public class BlockEntityMultiSignPost : BlockEntity
                     int requiredExtraBlocks = GetRequiredExtraBlocks(proposedText);
 
                     string message = requiredExtraBlocks > MultiSignpostConfig.Current.MaxExtensions
-                        ? "This signpost exceeds the server's maximum extension limit."
-                        : "Not enough empty space above the signpost.";
+                        ? Lang.Get("multisignpost:chat-extension-limit")
+                        : Lang.Get("multisignpost:chat-not-enough-space");
 
                     serverPlayer.SendMessage(
                         GlobalConstants.GeneralChatGroup,
@@ -301,7 +289,7 @@ public class BlockEntityMultiSignPost : BlockEntity
             {
                 BinaryWriter writer = new BinaryWriter(ms);
 
-                writer.Write(Lang.Get("Edit Multi Signpost Text"));
+                writer.Write(Lang.Get("multisignpost:dialog-title"));
                 writer.Write(MultiSignpostConfig.Current.MaxExtensions);
                 WriteTextByDirection(writer, TextByDirection);
 

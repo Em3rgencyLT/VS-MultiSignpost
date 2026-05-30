@@ -1,3 +1,26 @@
 {
-    "multisignpost:block-multisignpost": "Multi Sign Post"
+  "multisignpost:block-multisignpost": "Multi Sign Post",
+
+  "multisignpost:dialog-title": "Edit Multi Sign Post Text",
+
+  "multisignpost:direction-north": "North",
+  "multisignpost:direction-northeast": "North East",
+  "multisignpost:direction-east": "East",
+  "multisignpost:direction-southeast": "South East",
+  "multisignpost:direction-south": "South",
+  "multisignpost:direction-southwest": "South West",
+  "multisignpost:direction-west": "West",
+  "multisignpost:direction-northwest": "North West",
+
+  "multisignpost:button-add-arrow": "+ Add Arrow",
+  "multisignpost:button-remove-empty": "Remove Empty",
+
+  "multisignpost:warning-extension-limit": "This sign post needs {0} extra block(s), but the server limit is {1}.",
+  "multisignpost:warning-not-enough-space": "Not enough empty space above this sign post. It needs {0} block(s) to be clear above the base signpost before it can be saved.",
+  "multisignpost:warning-will-create-extensions": "This sign post will extend {0} block(s) upward.",
+
+  "multisignpost:chat-extension-limit": "This sign post exceeds the server's maximum extension limit.",
+  "multisignpost:chat-not-enough-space": "Not enough empty space above the sign post.",
+
+  "placefailure-cant-place-multisignpost-extension": "Multi Sign Post extension blocks cannot be placed manually."
 }

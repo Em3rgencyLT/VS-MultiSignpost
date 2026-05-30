@@ -40,6 +40,18 @@ public class GuiDialogMultiSignPost : GuiDialogGeneric
     private int currentDirectionIndex;
     private int firstVisibleInputIndex;
 
+    private static readonly string[] DirectionLabelKeys =
+    {
+        "multisignpost:direction-north",
+        "multisignpost:direction-northeast",
+        "multisignpost:direction-east",
+        "multisignpost:direction-southeast",
+        "multisignpost:direction-south",
+        "multisignpost:direction-southwest",
+        "multisignpost:direction-west",
+        "multisignpost:direction-northwest"
+    };
+
     public GuiDialogMultiSignPost(
         string dialogTitle,
         BlockPos blockEntityPos,
@@ -128,7 +140,7 @@ public class GuiDialogMultiSignPost : GuiDialogGeneric
                 )
                 .BeginChildElements(bgBounds)
                     .AddStaticText(
-                        BlockEntityMultiSignPost.DirectionLabels[currentDirectionIndex],
+                        DirectionLabel(currentDirectionIndex),
                         CairoFont.WhiteDetailText(),
                         ElementBounds.Fixed(0, DirectionTitleY, InputWidth, 22)
                     )
@@ -154,14 +166,14 @@ public class GuiDialogMultiSignPost : GuiDialogGeneric
                     .EndClip()
                     .AddVerticalScrollbar(OnInputScrollbarValue, scrollbarBounds, "inputScrollbar")
                     .AddSmallButton(
-                        "+ Add Arrow",
+                        Lang.Get("multisignpost:button-add-arrow"),
                         OnButtonAddArrow,
                         ElementBounds.Fixed(0, buttonsY, 130, 24),
                         EnumButtonStyle.Normal,
                         "addArrowButton"
                     )
                     .AddSmallButton(
-                        "Remove Empty",
+                        Lang.Get("multisignpost:button-remove-empty"),
                         OnButtonRemoveEmpty,
                         ElementBounds.Fixed(145, buttonsY, 150, 24),
                         EnumButtonStyle.Normal,
@@ -218,8 +230,8 @@ public class GuiDialogMultiSignPost : GuiDialogGeneric
         {
             tabs[directionIndex] = new GuiTab
             {
-                Name = BlockEntityMultiSignPost.DirectionLabels[directionIndex],
-                DataInt = directionIndex
+                DataInt = directionIndex,
+                Name = DirectionLabel(directionIndex)
             };
         }
 
@@ -453,23 +465,25 @@ public class GuiDialogMultiSignPost : GuiDialogGeneric
 
         if (requiredExtraBlocks > maxExtensions)
         {
-            warningText = "This signpost needs "
-                          + requiredExtraBlocks
-                          + " extra block(s), but the server limit is "
-                          + maxExtensions
-                          + ".";
+            warningText = Lang.Get(
+                "multisignpost:warning-extension-limit",
+                requiredExtraBlocks,
+                maxExtensions
+            );
         }
         else if (!canSave)
         {
-            warningText = "Not enough empty space above this signpost. It needs "
-                            + requiredExtraBlocks
-                            + " block(s) to be clear above the base signpost before it can be saved.";
+            warningText = Lang.Get(
+                "multisignpost:warning-not-enough-space",
+                requiredExtraBlocks
+            );
         }
         else if (requiredExtraBlocks > 0)
         {
-            warningText = "This signpost will extend "
-                          + requiredExtraBlocks
-                          + " block(s) upward.";
+            warningText = Lang.Get(
+                "multisignpost:warning-will-create-extensions",
+                requiredExtraBlocks
+            );
         }
 
         SingleComposer.GetDynamicText("warningText").SetNewText(warningText, true);
@@ -526,5 +540,10 @@ public class GuiDialogMultiSignPost : GuiDialogGeneric
         }
 
         base.OnGuiClosed();
+    }
+
+    private static string DirectionLabel(int directionIndex)
+    {
+        return Lang.Get(DirectionLabelKeys[directionIndex]);
     }
 }
