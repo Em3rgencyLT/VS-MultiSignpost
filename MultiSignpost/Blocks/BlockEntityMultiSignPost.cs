@@ -18,10 +18,16 @@ public class BlockEntityMultiSignPost : BlockEntity
     public const int DirectionCount = 8;
 
     public const int BaseOccupiedHeightBlocks = 2;
-    public const int BaseFreeArrowCount = 5;
-    public const int ArrowsPerExtraBlock = 5;
+
+    private const float VanillaPoleHeight = 2f;
+    private const float VanillaArrowTopY = 31.5f / 16f;
+    private const float PoleHalfWidth = 1f / 16f;
+    private const float HeightEpsilon = 0.0001f;
+    private static readonly Vec3f MeshScaleOrigin = new Vec3f(0.5f, 0f, 0.5f);
 
     public const int HardMaxManagedExtensionBlocks = 128;
+
+    public float SignScale => signScale;
 
     public static readonly AssetLocation ExtensionBlockCode =
         new AssetLocation("multisignpost", "multisignpost-extension");
@@ -30,12 +36,16 @@ public class BlockEntityMultiSignPost : BlockEntity
 
     private List<string>[] previewTextByDirection;
 
+    private float signScale = 1f;
+    private float previewScale = -1f;
+    private float RenderScale => previewScale > 0 ? previewScale : signScale;
     private BlockEntityMultiSignPostRenderer signRenderer;
     private int color;
     private int tempColor;
     private ItemStack tempStack;
 
     private MeshData signMesh;
+    private MeshData postMesh;
 
     private GuiDialogMultiSignPost dlg;
     private bool isBreakingWholeStructure;
@@ -44,17 +54,25 @@ public class BlockEntityMultiSignPost : BlockEntity
     {
         base.Initialize(api);
 
+        signScale = ClampScale(signScale);
+
         if (api is ICoreClientAPI capi)
         {
             CairoFont font = new CairoFont(20, GuiStyle.StandardFontName, new double[] { 0, 0, 0, 0.8 });
 
             signRenderer = new BlockEntityMultiSignPostRenderer(Pos, capi, font);
-            signRenderer.SetNewText(TextByDirection, color == 0 ? ColorUtil.BlackArgb : color);
+            signRenderer.SetNewText(TextByDirection, color == 0 ? ColorUtil.BlackArgb : color, RenderScale);
 
             Shape signShape = Shape.TryGet(api, new AssetLocation("game", "shapes/block/wood/signpost/sign.json"));
             if (signShape != null)
             {
                 capi.Tesselator.TesselateShape(Block, signShape, out signMesh);
+            }
+
+            Shape postShape = Shape.TryGet(api, new AssetLocation("game", "shapes/block/wood/signpost/post.json"));
+            if (postShape != null)
+            {
+                capi.Tesselator.TesselateShape(Block, postShape, out postMesh);
             }
         }
 
@@ -74,10 +92,12 @@ public class BlockEntityMultiSignPost : BlockEntity
             color = ColorUtil.BlackArgb;
         }
 
+        signScale = ClampScale(tree.GetFloat("signScale", MultiSignpostConfig.Current.DefaultScale));
+
         ReadFromTree(tree);
         ClearPreviewText();
 
-        signRenderer?.SetNewText(TextByDirection, color);
+        signRenderer?.SetNewText(TextByDirection, color, RenderScale);
     }
 
     public override void ToTreeAttributes(ITreeAttribute tree)
@@ -85,6 +105,7 @@ public class BlockEntityMultiSignPost : BlockEntity
         base.ToTreeAttributes(tree);
 
         tree.SetInt("color", color);
+        tree.SetFloat("signScale", signScale);
 
         List<string>[] normalized = NormalizeTextByDirection(TextByDirection);
 
@@ -120,16 +141,23 @@ public class BlockEntityMultiSignPost : BlockEntity
         if (packetid == (int)MultiSignPostPacketId.SaveText)
         {
             List<string>[] proposedText;
+            float proposedScale;
 
             using (MemoryStream ms = new MemoryStream(data))
             {
                 BinaryReader reader = new BinaryReader(ms);
+
                 proposedText = ReadTextByDirection(reader);
+
+                proposedScale = reader.BaseStream.Position < reader.BaseStream.Length
+                    ? reader.ReadSingle()
+                    : signScale;
             }
 
             proposedText = NormalizeTextByDirection(proposedText);
+            proposedScale = ClampScale(proposedScale);
 
-            if (!CanTextFitWithoutExtensionCollision(proposedText))
+            if (!CanTextFitWithoutExtensionCollision(proposedText, proposedScale, MultiSignpostConfig.Current.MaxExtensions))
             {
                 if (tempStack != null)
                 {
@@ -139,7 +167,7 @@ public class BlockEntityMultiSignPost : BlockEntity
 
                 if (player is IServerPlayer serverPlayer)
                 {
-                    int requiredExtraBlocks = GetRequiredExtraBlocks(proposedText);
+                    int requiredExtraBlocks = GetRequiredExtraBlocks(proposedText, proposedScale);
 
                     string message = requiredExtraBlocks > MultiSignpostConfig.Current.MaxExtensions
                         ? Lang.Get("multisignpost:chat-extension-limit")
@@ -157,6 +185,8 @@ public class BlockEntityMultiSignPost : BlockEntity
 
             ReplaceSavedTextByDirection(proposedText);
             ClearPreviewText();
+
+            signScale = proposedScale;
 
             color = tempColor == 0 ? color : tempColor;
             if (color == 0)
@@ -195,9 +225,13 @@ public class BlockEntityMultiSignPost : BlockEntity
 
                 string dialogTitle = reader.ReadString();
                 int serverMaxExtensions = reader.ReadInt32();
+                float serverMinScale = reader.ReadSingle();
+                float serverMaxScale = reader.ReadSingle();
+                float currentScale = reader.ReadSingle();
                 List<string>[] textByDirection = ReadTextByDirection(reader);
 
                 ReplaceSavedTextByDirection(textByDirection);
+                signScale = ClampScale(currentScale);
                 ClearPreviewText();
 
                 ICoreClientAPI capi = Api as ICoreClientAPI;
@@ -214,8 +248,11 @@ public class BlockEntityMultiSignPost : BlockEntity
                     TextByDirection,
                     capi,
                     font,
-                    text => CanTextFitWithoutExtensionCollision(text, serverMaxExtensions),
-                    serverMaxExtensions
+                    (text, scale) => CanTextFitWithoutExtensionCollision(text, scale, serverMaxExtensions),
+                    serverMaxExtensions,
+                    serverMinScale,
+                    serverMaxScale,
+                    signScale
                 );
 
                 dlg.OnTextChanged = DidChangeTextClientSide;
@@ -223,7 +260,7 @@ public class BlockEntityMultiSignPost : BlockEntity
                 dlg.OnCloseCancel = () =>
                 {
                     ClearPreviewText();
-                    signRenderer?.SetNewText(TextByDirection, color);
+                    signRenderer?.SetNewText(TextByDirection, color, RenderScale);
                     MarkDirty(true);
 
                     capi.Network.SendBlockEntityPacket(Pos, (int)MultiSignPostPacketId.CancelEdit, null);
@@ -249,17 +286,18 @@ public class BlockEntityMultiSignPost : BlockEntity
                 ReplaceSavedTextByDirection(textByDirection);
                 ClearPreviewText();
 
-                signRenderer?.SetNewText(TextByDirection, color);
+                signRenderer?.SetNewText(TextByDirection, color, RenderScale);
                 MarkDirty(true);
             }
         }
     }
 
-    private void DidChangeTextClientSide(List<string>[] previewText)
+    private void DidChangeTextClientSide(List<string>[] previewText, float scale)
     {
         previewTextByDirection = CloneTextByDirection(previewText);
+        previewScale = ClampScale(scale);
 
-        signRenderer?.SetNewText(previewTextByDirection, tempColor == 0 ? color : tempColor);
+        signRenderer?.SetNewText(previewTextByDirection, tempColor == 0 ? color : tempColor, RenderScale);
         MarkDirty(true);
     }
 
@@ -277,6 +315,8 @@ public class BlockEntityMultiSignPost : BlockEntity
             return;
         }
 
+        signScale = ClampScale(signScale);
+
         tempColor = writingColor;
         tempStack = hotbarSlot.TakeOut(1);
         hotbarSlot.MarkDirty();
@@ -291,6 +331,9 @@ public class BlockEntityMultiSignPost : BlockEntity
 
                 writer.Write(Lang.Get("multisignpost:dialog-title"));
                 writer.Write(MultiSignpostConfig.Current.MaxExtensions);
+                writer.Write(MultiSignpostConfig.Current.MinScale);
+                writer.Write(MultiSignpostConfig.Current.MaxScale);
+                writer.Write(signScale);
                 WriteTextByDirection(writer, TextByDirection);
 
                 data = ms.ToArray();
@@ -336,6 +379,8 @@ public class BlockEntityMultiSignPost : BlockEntity
 
         RemoveOwnedExtensionBlocks();
 
+        ClearPreviewText();
+
         signRenderer?.Dispose();
         signRenderer = null;
     }
@@ -343,6 +388,8 @@ public class BlockEntityMultiSignPost : BlockEntity
     public override void OnBlockUnloaded()
     {
         base.OnBlockUnloaded();
+
+        ClearPreviewText();
 
         signRenderer?.Dispose();
         signRenderer = null;
@@ -352,9 +399,36 @@ public class BlockEntityMultiSignPost : BlockEntity
     {
         List<string>[] textToRender = GetTextForRendering();
 
+        float scale = RenderScale;
+
+        AddPostMesh(mesher, textToRender, scale);
+        AddArrowMeshes(mesher, textToRender, scale);
+
+        return false;
+    }
+
+    private void AddPostMesh(ITerrainMeshPool mesher, List<string>[] textToRender, float scale)
+    {
+        if (postMesh == null)
+        {
+            return;
+        }
+
+        float poleHeight = GetRenderedPoleHeight(textToRender, scale);
+        float yScale = poleHeight / VanillaPoleHeight;
+
+        MeshData mesh = postMesh.Clone();
+
+        mesh.Scale(MeshScaleOrigin, scale, yScale, scale);
+
+        mesher.AddMeshData(mesh);
+    }
+
+    private void AddArrowMeshes(ITerrainMeshPool mesher, List<string>[] textToRender, float scale)
+    {
         if (signMesh == null)
         {
-            return false;
+            return;
         }
 
         for (int directionIndex = 0; directionIndex < DirectionCount; directionIndex++)
@@ -369,17 +443,17 @@ public class BlockEntityMultiSignPost : BlockEntity
                 }
 
                 float rotY = GetArrowRotationY(directionIndex);
-                float yOffset = GetVerticalOffset(slotIndex);
+                float yOffset = GetVerticalOffset(slotIndex, scale);
 
                 MeshData mesh = signMesh.Clone();
+
+                mesh.Scale(MeshScaleOrigin, scale, scale, scale);
                 mesh.Rotate(0, rotY * GameMath.DEG2RAD, 0);
                 mesh.Translate(0, yOffset, 0);
 
                 mesher.AddMeshData(mesh);
             }
         }
-
-        return false;
     }
 
     private List<string>[] GetTextForRendering()
@@ -390,19 +464,12 @@ public class BlockEntityMultiSignPost : BlockEntity
     private void ClearPreviewText()
     {
         previewTextByDirection = null;
+        previewScale = -1f;
     }
 
-    public bool CanTextFitWithoutExtensionCollision(List<string>[] textByDirection)
+    public bool CanTextFitWithoutExtensionCollision(List<string>[] textByDirection, float scale, int maxExtensions)
     {
-        return CanTextFitWithoutExtensionCollision(
-            textByDirection,
-            MultiSignpostConfig.Current.MaxExtensions
-        );
-    }
-
-    public bool CanTextFitWithoutExtensionCollision(List<string>[] textByDirection, int maxExtensions)
-    {
-        int requiredExtraBlocks = GetRequiredExtraBlocks(textByDirection);
+        int requiredExtraBlocks = GetRequiredExtraBlocks(textByDirection, scale);
 
         if (requiredExtraBlocks > maxExtensions)
         {
@@ -458,7 +525,9 @@ public class BlockEntityMultiSignPost : BlockEntity
             return;
         }
 
-        int requiredExtraBlocks = GetRequiredExtraBlocks(TextByDirection);
+        signScale = ClampScale(signScale);
+
+        int requiredExtraBlocks = GetRequiredExtraBlocks(TextByDirection, signScale);
         int maxExtensions = MultiSignpostConfig.Current.MaxExtensions;
 
         int blocksToPlace = Math.Min(requiredExtraBlocks, maxExtensions);
@@ -550,16 +619,23 @@ public class BlockEntityMultiSignPost : BlockEntity
         return Api.World.GetBlock(ExtensionBlockCode);
     }
 
-    public static int GetRequiredExtraBlocks(List<string>[] textByDirection)
+    public static int GetRequiredExtraBlocks(List<string>[] textByDirection, float scale)
     {
-        int highestRenderedSlotCount = GetHighestRenderedSlotCount(textByDirection);
+        float requiredVisualHeight = GetRequiredVisualHeight(textByDirection, scale);
 
-        if (highestRenderedSlotCount <= BaseFreeArrowCount)
-        {
-            return 0;
-        }
+        int totalBlocksNeeded = (int)Math.Ceiling(requiredVisualHeight - HeightEpsilon);
 
-        return (int)Math.Ceiling((highestRenderedSlotCount - BaseFreeArrowCount) / (double)ArrowsPerExtraBlock);
+        return Math.Max(0, totalBlocksNeeded - BaseOccupiedHeightBlocks);
+    }
+
+    public static float GetRequiredVisualHeight(List<string>[] textByDirection, float scale)
+    {
+        scale = Math.Max(0.01f, scale);
+
+        float poleHeight = GetScaledPoleHeight(scale);
+        float arrowHeight = GetHighestArrowTop(textByDirection, scale);
+
+        return Math.Max(poleHeight, arrowHeight);
     }
 
     public static int GetHighestRenderedSlotCount(List<string>[] textByDirection)
@@ -603,6 +679,16 @@ public class BlockEntityMultiSignPost : BlockEntity
     }
 
     public static float GetVerticalOffset(int slotIndex)
+    {
+        return GetUnscaledVerticalOffset(slotIndex);
+    }
+
+    public static float GetVerticalOffset(int slotIndex, float scale)
+    {
+        return GetUnscaledVerticalOffset(slotIndex) * Math.Max(0.01f, scale);
+    }
+
+    private static float GetUnscaledVerticalOffset(int slotIndex)
     {
         return (slotIndex - 4) * 0.2f;
     }
@@ -774,5 +860,117 @@ public class BlockEntityMultiSignPost : BlockEntity
         }
 
         return false;
+    }
+
+    private static float ClampScale(float scale)
+    {
+        return Math.Max(
+            MultiSignpostConfig.Current.MinScale,
+            Math.Min(MultiSignpostConfig.Current.MaxScale, scale)
+        );
+    }
+
+    private static float GetScaledPoleHeight(float scale)
+    {
+        return VanillaPoleHeight * Math.Max(0.01f, scale);
+    }
+
+    private static float GetHighestArrowTop(List<string>[] textByDirection, float scale)
+    {
+        int highestRenderedSlotCount = GetHighestRenderedSlotCount(textByDirection);
+
+        if (highestRenderedSlotCount <= 0)
+        {
+            return 0f;
+        }
+
+        int highestSlotIndex = highestRenderedSlotCount - 1;
+
+        return GetArrowTop(highestSlotIndex, scale);
+    }
+
+    private static float GetArrowTop(int slotIndex, float scale)
+    {
+        scale = Math.Max(0.01f, scale);
+
+        return (VanillaArrowTopY + GetUnscaledVerticalOffset(slotIndex)) * scale;
+    }
+
+    private static float GetRenderedPoleHeight(List<string>[] textByDirection, float scale)
+    {
+        return GetRequiredVisualHeight(textByDirection, scale);
+    }
+
+    public Cuboidf[] GetBasePoleBoxes()
+    {
+        float visualHeight = GetRenderedPoleHeight(TextByDirection, signScale);
+
+        return CreatePoleBoxes(
+            signScale,
+            visualHeight,
+            0f,
+            BaseOccupiedHeightBlocks
+        );
+    }
+
+    public Cuboidf[] GetExtensionPoleBoxes(BlockPos extensionPos)
+    {
+        float segmentStartY = extensionPos.Y - Pos.Y;
+        float visualHeight = GetRenderedPoleHeight(TextByDirection, signScale);
+
+        return CreatePoleBoxes(
+            signScale,
+            visualHeight,
+            segmentStartY,
+            1f
+        );
+    }
+
+    public Cuboidf GetBasePoleParticleBreakBox()
+    {
+        return FirstOrDefaultBox(GetBasePoleBoxes());
+    }
+
+    public Cuboidf GetExtensionPoleParticleBreakBox(BlockPos extensionPos)
+    {
+        return FirstOrDefaultBox(GetExtensionPoleBoxes(extensionPos));
+    }
+
+    private static Cuboidf[] CreatePoleBoxes(float scale, float visualHeight, float segmentStartY, float segmentHeight)
+    {
+        scale = Math.Max(0.01f, scale);
+
+        float localY2 = Math.Min(segmentHeight, visualHeight - segmentStartY);
+
+        if (localY2 <= HeightEpsilon)
+        {
+            return new Cuboidf[0];
+        }
+
+        float halfWidth = PoleHalfWidth * scale;
+
+        halfWidth = Math.Max(0.03125f, Math.Min(0.45f, halfWidth));
+
+        return new[]
+        {
+            new Cuboidf(
+                0.5f - halfWidth,
+                0f,
+                0.5f - halfWidth,
+                0.5f + halfWidth,
+                localY2,
+                0.5f + halfWidth
+            )
+        };
+    }
+
+    private static Cuboidf FirstOrDefaultBox(Cuboidf[] boxes)
+    {
+        if (boxes != null && boxes.Length > 0)
+        {
+            return boxes[0];
+        }
+
+        return new Cuboidf(0.45f, 0f, 0.45f, 0.55f, 0.1f, 0.55f);
     }
 }

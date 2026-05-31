@@ -1,4 +1,5 @@
 ﻿using Cairo;
+using System;
 using System.Collections.Generic;
 using Vintagestory.API.Client;
 using Vintagestory.API.Config;
@@ -15,6 +16,8 @@ public class BlockEntityMultiSignPostRenderer : IRenderer
     private const float QuadWidth = 0.7f;
     private const float QuadHeight = 0.1f;
 
+    private static readonly Vec3f MeshScaleOrigin = new Vec3f(0.5f, 0f, 0.5f);
+
     private readonly BlockPos pos;
     private readonly ICoreClientAPI api;
     private readonly CairoFont font;
@@ -26,6 +29,7 @@ public class BlockEntityMultiSignPostRenderer : IRenderer
     public Matrixf ModelMat = new Matrixf();
 
     private List<string>[] textByDirection = BlockEntityMultiSignPost.CreateEmptyTextByDirection();
+    private float signScale = 1f;
 
     public double RenderOrder => 0.5;
 
@@ -41,9 +45,10 @@ public class BlockEntityMultiSignPostRenderer : IRenderer
         api.Event.RegisterRenderer(this, EnumRenderStage.Opaque, "multisignpost");
     }
 
-    public void SetNewText(List<string>[] textByDirection, int color)
+    public void SetNewText(List<string>[] textByDirection, int color, float signScale = 1f)
     {
         this.textByDirection = BlockEntityMultiSignPost.CloneTextByDirection(textByDirection);
+        this.signScale = Math.Max(0.01f, signScale);
 
         font.WithColor(ColorUtil.ToRGBADoubles(color));
         font.UnscaledFontsize = fontSize / RuntimeEnv.GUIScale;
@@ -127,6 +132,7 @@ public class BlockEntityMultiSignPostRenderer : IRenderer
 
                 float rotY = BlockEntityMultiSignPost.GetTextRotationY(directionIndex);
                 float yOffset = BlockEntityMultiSignPost.GetVerticalOffset(slotIndex);
+                float yPosition = 1.39f + yOffset;
 
                 MeshData modelData = QuadMeshUtil.GetQuad();
 
@@ -137,10 +143,10 @@ public class BlockEntityMultiSignPostRenderer : IRenderer
 
                 modelData.Uv = new float[]
                 {
-                    1, vEnd,
-                    0, vEnd,
-                    0, vStart,
-                    1, vStart
+                1, vEnd,
+                0, vEnd,
+                0, vStart,
+                1, vStart
                 };
 
                 modelData.Rgba = new byte[4 * 4];
@@ -150,9 +156,14 @@ public class BlockEntityMultiSignPostRenderer : IRenderer
 
                 MeshData front = modelData.Clone();
 
-                front.Scale(0.5f * QuadWidth, 0.4f * QuadHeight, 0.5f * QuadWidth);
+                front.Scale(
+                    0.5f * QuadWidth,
+                    0.4f * QuadHeight,
+                    0.5f * QuadWidth
+                );
+
                 front.Rotate(0, rotY * GameMath.DEG2RAD, 0);
-                front.Translate(0, 1.39f + yOffset, 0);
+                front.Translate(0, yPosition, 0);
 
                 allMeshes.AddMeshData(front);
 
@@ -167,13 +178,21 @@ public class BlockEntityMultiSignPostRenderer : IRenderer
                 };
 
                 back.Translate(0, 0, 0.26f);
-                back.Scale(0.5f * QuadWidth, 0.4f * QuadHeight, 0.5f * QuadWidth);
+
+                back.Scale(
+                    0.5f * QuadWidth,
+                    0.4f * QuadHeight,
+                    0.5f * QuadWidth
+                );
+
                 back.Rotate(0, rotY * GameMath.DEG2RAD, 0);
-                back.Translate(0, 1.39f + yOffset, 0);
+                back.Translate(0, yPosition, 0);
 
                 allMeshes.AddMeshData(back);
             }
         }
+
+        allMeshes.Scale(MeshScaleOrigin, signScale, signScale, signScale);
 
         quadModelRef?.Dispose();
         quadModelRef = api.Render.UploadMesh(allMeshes);
@@ -232,6 +251,9 @@ public class BlockEntityMultiSignPostRenderer : IRenderer
         api.Event.UnregisterRenderer(this, EnumRenderStage.Opaque);
 
         loadedTexture?.Dispose();
+        loadedTexture = null;
+
         quadModelRef?.Dispose();
+        quadModelRef = null;
     }
 }

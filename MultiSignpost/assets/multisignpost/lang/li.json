@@ -14,6 +14,7 @@
 
   "multisignpost:button-add-arrow": "+ Pridėti Rodyklę",
   "multisignpost:button-remove-empty": "Pašalinti Tuščius",
+  "multisignpost:label-scale-slider": "Dydis",
 
   "multisignpost:warning-extension-limit": "Šiam ženklui papildomai reikia {0} sekcijų(os), tačiau serverio limitas yra {1}.",
   "multisignpost:warning-not-enough-space": "Virš ženklo nepakanka tuščios erdvės. Reikia, kad {0} kaladėlė(s) virš ženklo būtų laisvos prieš išsaugant pakeitimus.",

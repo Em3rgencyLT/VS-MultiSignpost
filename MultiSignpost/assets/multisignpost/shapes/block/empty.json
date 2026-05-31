@@ -1,0 +1,12 @@
+{
+  "editor": {
+    "allAngles": false,
+    "singleTexture": false
+  },
+  "textureWidth": 32,
+  "textureHeight": 16,
+  "textures": {
+    "sign": "game:block/wood/signpost/front"
+  },
+  "elements": []
+}

@@ -2,7 +2,7 @@
   "code": "multisignpost-extension",
   "class": "multisignpost.blockMultiSignPostExtension",
   "entityClass": "multisignpost.multiSignPostExtension",
-  "shape": { "base": "multisignpost:block/wood/signpost/extension" },
+  "shape": { "base": "multisignpost:block/empty" },
   "blockmaterial": "Wood",
   "resistance": 2,
   "replaceable": 0,

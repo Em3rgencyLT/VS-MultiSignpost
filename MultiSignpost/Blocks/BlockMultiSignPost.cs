@@ -119,4 +119,34 @@ public class BlockMultiSignPost : Block
     {
         return interactions.Append(base.GetPlacedBlockInteractionHelp(world, selection, forPlayer));
     }
+
+    public override Cuboidf[] GetCollisionBoxes(IBlockAccessor blockAccessor, BlockPos pos)
+    {
+        if (blockAccessor.GetBlockEntity(pos) is BlockEntityMultiSignPost be)
+        {
+            return be.GetBasePoleBoxes();
+        }
+
+        return base.GetCollisionBoxes(blockAccessor, pos);
+    }
+
+    public override Cuboidf[] GetSelectionBoxes(IBlockAccessor blockAccessor, BlockPos pos)
+    {
+        if (blockAccessor.GetBlockEntity(pos) is BlockEntityMultiSignPost be)
+        {
+            return be.GetBasePoleBoxes();
+        }
+
+        return base.GetSelectionBoxes(blockAccessor, pos);
+    }
+
+    public override Cuboidf GetParticleBreakBox(IBlockAccessor blockAccess, BlockPos pos, BlockFacing facing)
+    {
+        if (blockAccess.GetBlockEntity(pos) is BlockEntityMultiSignPost be)
+        {
+            return be.GetBasePoleParticleBreakBox();
+        }
+
+        return base.GetParticleBreakBox(blockAccess, pos, facing);
+    }
 }

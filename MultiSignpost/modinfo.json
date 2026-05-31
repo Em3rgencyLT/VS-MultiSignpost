@@ -7,7 +7,7 @@
         "Em3rgency"
     ],
     "description": "Adds new signpost block that can have multiple arrows pointing in the same direction.",
-    "version": "0.2.0",
+    "version": "0.3.0",
     "dependencies": {
         "game": "1.22.0"
     }

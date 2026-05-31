@@ -1,5 +1,6 @@
 ﻿using Cairo;
 using MultiSignpost.Blocks;
+using MultiSignpost.Config;
 using MultiSignpost.Enums;
 using System;
 using System.Collections.Generic;
@@ -27,11 +28,11 @@ public class GuiDialogMultiSignPost : GuiDialogGeneric
     private readonly int maxExtensions;
     private readonly BlockPos blockEntityPos;
     private readonly CairoFont signPostFont;
-    private readonly Func<List<string>[], bool> canSaveValidator;
+    private readonly Func<List<string>[], float, bool> canSaveValidator;
 
     private readonly List<string>[] workingTextByDirection;
 
-    public Action<List<string>[]> OnTextChanged;
+    public Action<List<string>[], float> OnTextChanged;
     public Action OnCloseCancel;
 
     private bool didSave;
@@ -39,6 +40,12 @@ public class GuiDialogMultiSignPost : GuiDialogGeneric
     private bool suppressInputSync;
     private int currentDirectionIndex;
     private int firstVisibleInputIndex;
+
+    private readonly float minScale;
+    private readonly float maxScale;
+    private float currentScale;
+
+    private bool HasScaleSlider => MultiSignpostConfig.Current.HasScaleSlider();
 
     private static readonly string[] DirectionLabelKeys =
     {
@@ -58,13 +65,20 @@ public class GuiDialogMultiSignPost : GuiDialogGeneric
         List<string>[] textByDirection,
         ICoreClientAPI capi,
         CairoFont signPostFont,
-        Func<List<string>[], bool> canSaveValidator,
-        int maxExtensions) : base(dialogTitle, capi)
+        Func<List<string>[], float, bool> canSaveValidator,
+        int maxExtensions,
+        float minScale,
+        float maxScale,
+        float currentScale) : base(dialogTitle, capi)
     {
         this.maxExtensions = maxExtensions;
         this.blockEntityPos = blockEntityPos;
         this.signPostFont = signPostFont;
         this.canSaveValidator = canSaveValidator;
+
+        this.minScale = Math.Min(minScale, maxScale);
+        this.maxScale = Math.Max(minScale, maxScale);
+        this.currentScale = ClampGuiScale(currentScale);
 
         workingTextByDirection = BlockEntityMultiSignPost.CloneTextByDirection(textByDirection);
 
@@ -96,7 +110,8 @@ public class GuiDialogMultiSignPost : GuiDialogGeneric
             double inputListHeight = Math.Max(InputAreaHeight, totalInputRows * InputRowHeight);
 
             double buttonsY = InputAreaY + InputAreaHeight + 10;
-            double warningY = buttonsY + 35;
+            double scaleY = buttonsY + 35;
+            double warningY = HasScaleSlider ? scaleY + 50 : buttonsY + 35;
             double bottomButtonsY = warningY + 55;
 
             ElementBounds contentBounds = ElementBounds.Fixed(
@@ -122,6 +137,27 @@ public class GuiDialogMultiSignPost : GuiDialogGeneric
                 InputAreaY,
                 20,
                 InputAreaHeight
+            );
+
+            ElementBounds scaleLabelBounds = ElementBounds.Fixed(
+                0,
+                scaleY,
+                180,
+                20
+            );
+
+            ElementBounds scaleValueBounds = ElementBounds.Fixed(
+                180,
+                scaleY,
+                120,
+                20
+            );
+
+            ElementBounds scaleSliderBounds = ElementBounds.Fixed(
+                0,
+                scaleY + 22,
+                InputWidth,
+                20
             );
 
             bgBounds.WithChildren(contentBounds);
@@ -178,7 +214,30 @@ public class GuiDialogMultiSignPost : GuiDialogGeneric
                         ElementBounds.Fixed(145, buttonsY, 150, 24),
                         EnumButtonStyle.Normal,
                         "removeEmptyButton"
+                    );
+
+            if (HasScaleSlider)
+            {
+                SingleComposer
+                    .AddStaticText(
+                        Lang.Get("multisignpost:label-scale-slider"),
+                        CairoFont.WhiteDetailText(),
+                        scaleLabelBounds
                     )
+                    .AddDynamicText(
+                        "",
+                        CairoFont.WhiteDetailText(),
+                        scaleValueBounds,
+                        "scaleValueText"
+                    )
+                    .AddSlider(
+                        OnScaleSliderChanged,
+                        scaleSliderBounds,
+                        "scaleSlider"
+                    );
+            }
+
+            SingleComposer
                     .AddDynamicText(
                         "",
                         warningFont,
@@ -212,6 +271,18 @@ public class GuiDialogMultiSignPost : GuiDialogGeneric
                 (float)InputAreaHeight,
                 (float)inputListHeight
             );
+
+            if (HasScaleSlider)
+            {
+                SingleComposer.GetSlider("scaleSlider").SetValues(
+                    ScaleToSliderValue(currentScale),
+                    ScaleToSliderValue(minScale),
+                    ScaleToSliderValue(maxScale),
+                    1
+                );
+
+                UpdateScaleDynamicText();
+            }
 
             RefreshVisibleInputValues();
             UpdateValidationState();
@@ -277,7 +348,7 @@ public class GuiDialogMultiSignPost : GuiDialogGeneric
         firstVisibleInputIndex = 0;
 
         ComposeDialog();
-        OnTextChanged?.Invoke(BlockEntityMultiSignPost.CloneTextByDirection(workingTextByDirection));
+        OnTextChanged?.Invoke(BlockEntityMultiSignPost.CloneTextByDirection(workingTextByDirection), currentScale);
     }
 
     private void OnInputScrollbarValue(float value)
@@ -344,7 +415,7 @@ public class GuiDialogMultiSignPost : GuiDialogGeneric
             ClampVisibleInputsToTextWidth();
             SyncVisibleInputsToWorkingCopy();
 
-            OnTextChanged?.Invoke(BlockEntityMultiSignPost.CloneTextByDirection(workingTextByDirection));
+            OnTextChanged?.Invoke(BlockEntityMultiSignPost.CloneTextByDirection(workingTextByDirection), currentScale);
 
             UpdateValidationState();
         }
@@ -423,7 +494,7 @@ public class GuiDialogMultiSignPost : GuiDialogGeneric
 
         ComposeDialog();
 
-        OnTextChanged?.Invoke(BlockEntityMultiSignPost.CloneTextByDirection(workingTextByDirection));
+        OnTextChanged?.Invoke(BlockEntityMultiSignPost.CloneTextByDirection(workingTextByDirection), currentScale);
 
         return true;
     }
@@ -449,7 +520,7 @@ public class GuiDialogMultiSignPost : GuiDialogGeneric
 
         ComposeDialog();
 
-        OnTextChanged?.Invoke(BlockEntityMultiSignPost.CloneTextByDirection(workingTextByDirection));
+        OnTextChanged?.Invoke(BlockEntityMultiSignPost.CloneTextByDirection(workingTextByDirection), currentScale);
 
         return true;
     }
@@ -458,8 +529,8 @@ public class GuiDialogMultiSignPost : GuiDialogGeneric
     {
         List<string>[] normalized = BlockEntityMultiSignPost.NormalizeTextByDirection(workingTextByDirection);
 
-        int requiredExtraBlocks = BlockEntityMultiSignPost.GetRequiredExtraBlocks(normalized);
-        bool canSave = canSaveValidator(normalized);
+        int requiredExtraBlocks = BlockEntityMultiSignPost.GetRequiredExtraBlocks(normalized, currentScale);
+        bool canSave = canSaveValidator(normalized, currentScale);
 
         string warningText = "";
 
@@ -501,7 +572,7 @@ public class GuiDialogMultiSignPost : GuiDialogGeneric
 
         List<string>[] normalized = BlockEntityMultiSignPost.NormalizeTextByDirection(workingTextByDirection);
 
-        if (!canSaveValidator(normalized))
+        if (!canSaveValidator(normalized, currentScale))
         {
             UpdateValidationState();
             return false;
@@ -514,6 +585,7 @@ public class GuiDialogMultiSignPost : GuiDialogGeneric
             BinaryWriter writer = new BinaryWriter(ms);
 
             BlockEntityMultiSignPost.WriteTextByDirection(writer, normalized);
+            writer.Write(currentScale);
 
             data = ms.ToArray();
         }
@@ -545,5 +617,52 @@ public class GuiDialogMultiSignPost : GuiDialogGeneric
     private static string DirectionLabel(int directionIndex)
     {
         return Lang.Get(DirectionLabelKeys[directionIndex]);
+    }
+
+    private bool OnScaleSliderChanged(int value)
+    {
+        if (suppressInputSync)
+        {
+            return true;
+        }
+
+        currentScale = ClampGuiScale(SliderValueToScale(value));
+
+        UpdateScaleDynamicText();
+        SyncVisibleInputsToWorkingCopy();
+
+        OnTextChanged?.Invoke(BlockEntityMultiSignPost.CloneTextByDirection(workingTextByDirection), currentScale);
+
+        UpdateValidationState();
+
+        return true;
+    }
+
+    private void UpdateScaleDynamicText()
+    {
+        if (!HasScaleSlider || SingleComposer == null)
+        {
+            return;
+        }
+
+        SingleComposer.GetDynamicText("scaleValueText").SetNewText(
+            currentScale.ToString("0.##") + "x",
+            true
+        );
+    }
+
+    private int ScaleToSliderValue(float scale)
+    {
+        return (int)Math.Round(scale * 100f);
+    }
+
+    private float SliderValueToScale(int value)
+    {
+        return value / 100f;
+    }
+
+    private float ClampGuiScale(float scale)
+    {
+        return Math.Max(minScale, Math.Min(maxScale, scale));
     }
 }

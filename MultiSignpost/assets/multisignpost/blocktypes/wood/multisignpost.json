@@ -6,7 +6,7 @@
   },
   "class": "multisignpost.blockMultiSignPost",
   "entityclass": "multisignpost.multiSignPost",
-  "shape": { "base": "game:block/wood/signpost/post" },
+  "shape": { "base": "multisignpost:block/empty" },
   "shapeInventory": { "base": "game:block/wood/signpost/inventory" },
   "behaviors": [
     { "name": "Lockable" }

@@ -74,4 +74,49 @@ public class BlockMultiSignPostExtension : Block
 
         return base.OnPickBlock(world, pos);
     }
+
+    public override Cuboidf[] GetCollisionBoxes(IBlockAccessor blockAccessor, BlockPos pos)
+    {
+        BlockEntityMultiSignPostExtension extensionBe =
+            blockAccessor.GetBlockEntity(pos) as BlockEntityMultiSignPostExtension;
+
+        BlockEntityMultiSignPost baseBe = extensionBe?.GetBaseEntity(blockAccessor.GetBlockEntity(pos)?.Api.World);
+
+        if (baseBe != null)
+        {
+            return baseBe.GetExtensionPoleBoxes(pos);
+        }
+
+        return base.GetCollisionBoxes(blockAccessor, pos);
+    }
+
+    public override Cuboidf[] GetSelectionBoxes(IBlockAccessor blockAccessor, BlockPos pos)
+    {
+        BlockEntityMultiSignPostExtension extensionBe =
+            blockAccessor.GetBlockEntity(pos) as BlockEntityMultiSignPostExtension;
+
+        BlockEntityMultiSignPost baseBe = extensionBe?.GetBaseEntity(blockAccessor.GetBlockEntity(pos)?.Api.World);
+
+        if (baseBe != null)
+        {
+            return baseBe.GetExtensionPoleBoxes(pos);
+        }
+
+        return base.GetSelectionBoxes(blockAccessor, pos);
+    }
+
+    public override Cuboidf GetParticleBreakBox(IBlockAccessor blockAccess, BlockPos pos, BlockFacing facing)
+    {
+        BlockEntityMultiSignPostExtension extensionBe =
+            blockAccess.GetBlockEntity(pos) as BlockEntityMultiSignPostExtension;
+
+        BlockEntityMultiSignPost baseBe = extensionBe?.GetBaseEntity(blockAccess.GetBlockEntity(pos)?.Api.World);
+
+        if (baseBe != null)
+        {
+            return baseBe.GetExtensionPoleParticleBreakBox(pos);
+        }
+
+        return base.GetParticleBreakBox(blockAccess, pos, facing);
+    }
 }
