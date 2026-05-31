@@ -134,7 +134,7 @@ public class BlockMultiSignPost : Block
     {
         if (blockAccessor.GetBlockEntity(pos) is BlockEntityMultiSignPost be)
         {
-            return be.GetBasePoleBoxes();
+            return be.GetBasePoleSelectionBoxes();
         }
 
         return base.GetSelectionBoxes(blockAccessor, pos);
@@ -148,5 +148,22 @@ public class BlockMultiSignPost : Block
         }
 
         return base.GetParticleBreakBox(blockAccess, pos, facing);
+    }
+
+    public override void GetDecal(
+        IWorldAccessor world,
+        BlockPos pos,
+        ITexPositionSource decalTexSource,
+        ref MeshData decalModelData,
+        ref MeshData blockModelData)
+    {
+        if (world.BlockAccessor.GetBlockEntity(pos) is BlockEntityMultiSignPost be)
+        {
+            blockModelData = be.GetBasePoleBlockModelMesh();
+            decalModelData = be.GetBasePoleDecalMesh(decalTexSource);
+            return;
+        }
+
+        base.GetDecal(world, pos, decalTexSource, ref decalModelData, ref blockModelData);
     }
 }

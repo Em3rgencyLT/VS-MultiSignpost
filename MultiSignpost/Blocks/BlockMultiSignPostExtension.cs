@@ -1,5 +1,6 @@
 ﻿using Vintagestory.API.Common;
 using Vintagestory.API.MathTools;
+using Vintagestory.API.Client;
 
 namespace MultiSignpost.Blocks;
 
@@ -75,6 +76,28 @@ public class BlockMultiSignPostExtension : Block
         return base.OnPickBlock(world, pos);
     }
 
+    public override void GetDecal(
+        IWorldAccessor world,
+        BlockPos pos,
+        ITexPositionSource decalTexSource,
+        ref MeshData decalModelData,
+        ref MeshData blockModelData)
+    {
+        BlockEntityMultiSignPostExtension extensionBe =
+            world.BlockAccessor.GetBlockEntity(pos) as BlockEntityMultiSignPostExtension;
+
+        BlockEntityMultiSignPost baseBe = extensionBe?.GetBaseEntity(world);
+
+        if (baseBe != null)
+        {
+            blockModelData = baseBe.GetExtensionPoleBlockModelMesh(pos);
+            decalModelData = baseBe.GetExtensionPoleDecalMesh(pos, decalTexSource);
+            return;
+        }
+
+        base.GetDecal(world, pos, decalTexSource, ref decalModelData, ref blockModelData);
+    }
+
     public override Cuboidf[] GetCollisionBoxes(IBlockAccessor blockAccessor, BlockPos pos)
     {
         BlockEntityMultiSignPostExtension extensionBe =
@@ -99,7 +122,7 @@ public class BlockMultiSignPostExtension : Block
 
         if (baseBe != null)
         {
-            return baseBe.GetExtensionPoleBoxes(pos);
+            return baseBe.GetExtensionPoleSelectionBoxes(pos);
         }
 
         return base.GetSelectionBoxes(blockAccessor, pos);

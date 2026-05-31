@@ -39,6 +39,7 @@ ZZCakeBuild/
 build.ps1
 build.sh
 dist/
+lib/
 
 # Visual Studio 2015/2017 cache/options directory
 .vs/

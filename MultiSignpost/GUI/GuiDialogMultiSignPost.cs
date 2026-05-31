@@ -529,16 +529,16 @@ public class GuiDialogMultiSignPost : GuiDialogGeneric
     {
         List<string>[] normalized = BlockEntityMultiSignPost.NormalizeTextByDirection(workingTextByDirection);
 
-        int requiredExtraBlocks = BlockEntityMultiSignPost.GetRequiredExtraBlocks(normalized, currentScale);
+        int requiredTotalHeightBlocks = BlockEntityMultiSignPost.GetRequiredTotalHeightBlocks(normalized, currentScale);
         bool canSave = canSaveValidator(normalized, currentScale);
 
         string warningText = "";
 
-        if (requiredExtraBlocks > maxExtensions)
+        if (requiredTotalHeightBlocks > maxExtensions)
         {
             warningText = Lang.Get(
                 "multisignpost:warning-extension-limit",
-                requiredExtraBlocks,
+                requiredTotalHeightBlocks,
                 maxExtensions
             );
         }
@@ -546,14 +546,14 @@ public class GuiDialogMultiSignPost : GuiDialogGeneric
         {
             warningText = Lang.Get(
                 "multisignpost:warning-not-enough-space",
-                requiredExtraBlocks
+                requiredTotalHeightBlocks
             );
         }
-        else if (requiredExtraBlocks > 0)
+        else if (maxExtensions > 0)
         {
             warningText = Lang.Get(
                 "multisignpost:warning-will-create-extensions",
-                requiredExtraBlocks
+                requiredTotalHeightBlocks
             );
         }
 

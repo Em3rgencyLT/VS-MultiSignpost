@@ -10,6 +10,7 @@ using Vintagestory.API.Config;
 using Vintagestory.API.Datastructures;
 using Vintagestory.API.MathTools;
 using Vintagestory.API.Server;
+using Vintagestory.API.Util;
 
 namespace MultiSignpost.Blocks;
 
@@ -17,12 +18,13 @@ public class BlockEntityMultiSignPost : BlockEntity
 {
     public const int DirectionCount = 8;
 
-    public const int BaseOccupiedHeightBlocks = 2;
+    public const int BaseOccupiedHeightBlocks = 1;
 
     private const float VanillaPoleHeight = 2f;
     private const float VanillaArrowTopY = 31.5f / 16f;
     private const float PoleHalfWidth = 1f / 16f;
     private const float HeightEpsilon = 0.0001f;
+    private const float PoleTopPadding = 1f / 32f;
     private static readonly Vec3f MeshScaleOrigin = new Vec3f(0.5f, 0f, 0.5f);
 
     public const int HardMaxManagedExtensionBlocks = 128;
@@ -167,9 +169,9 @@ public class BlockEntityMultiSignPost : BlockEntity
 
                 if (player is IServerPlayer serverPlayer)
                 {
-                    int requiredExtraBlocks = GetRequiredExtraBlocks(proposedText, proposedScale);
+                    int requiredTotalHeightBlocks = GetRequiredTotalHeightBlocks(proposedText, proposedScale);
 
-                    string message = requiredExtraBlocks > MultiSignpostConfig.Current.MaxExtensions
+                    string message = requiredTotalHeightBlocks > MultiSignpostConfig.Current.MaxExtensions
                         ? Lang.Get("multisignpost:chat-extension-limit")
                         : Lang.Get("multisignpost:chat-not-enough-space");
 
@@ -467,14 +469,18 @@ public class BlockEntityMultiSignPost : BlockEntity
         previewScale = -1f;
     }
 
-    public bool CanTextFitWithoutExtensionCollision(List<string>[] textByDirection, float scale, int maxExtensions)
+    public bool CanTextFitWithoutExtensionCollision(List<string>[] textByDirection, float scale, int maxTotalHeightBlocks)
     {
-        int requiredExtraBlocks = GetRequiredExtraBlocks(textByDirection, scale);
+        maxTotalHeightBlocks = Math.Max(1, maxTotalHeightBlocks);
 
-        if (requiredExtraBlocks > maxExtensions)
+        int requiredTotalHeightBlocks = GetRequiredTotalHeightBlocks(textByDirection, scale);
+
+        if (requiredTotalHeightBlocks > maxTotalHeightBlocks)
         {
             return false;
         }
+
+        int requiredExtraBlocks = GetRequiredExtraBlocks(textByDirection, scale);
 
         if (requiredExtraBlocks > HardMaxManagedExtensionBlocks)
         {
@@ -528,9 +534,9 @@ public class BlockEntityMultiSignPost : BlockEntity
         signScale = ClampScale(signScale);
 
         int requiredExtraBlocks = GetRequiredExtraBlocks(TextByDirection, signScale);
-        int maxExtensions = MultiSignpostConfig.Current.MaxExtensions;
+        int maxAllowedExtraBlocks = GetMaxAllowedExtraBlocks(MultiSignpostConfig.Current.MaxExtensions);
 
-        int blocksToPlace = Math.Min(requiredExtraBlocks, maxExtensions);
+        int blocksToPlace = Math.Min(requiredExtraBlocks, maxAllowedExtraBlocks);
 
         for (int extensionIndex = 0; extensionIndex < HardMaxManagedExtensionBlocks; extensionIndex++)
         {
@@ -619,11 +625,19 @@ public class BlockEntityMultiSignPost : BlockEntity
         return Api.World.GetBlock(ExtensionBlockCode);
     }
 
-    public static int GetRequiredExtraBlocks(List<string>[] textByDirection, float scale)
+    public static int GetRequiredTotalHeightBlocks(List<string>[] textByDirection, float scale)
     {
         float requiredVisualHeight = GetRequiredVisualHeight(textByDirection, scale);
 
-        int totalBlocksNeeded = (int)Math.Ceiling(requiredVisualHeight - HeightEpsilon);
+        return Math.Max(
+            1,
+            (int)Math.Ceiling(requiredVisualHeight - HeightEpsilon)
+        );
+    }
+
+    public static int GetRequiredExtraBlocks(List<string>[] textByDirection, float scale)
+    {
+        int totalBlocksNeeded = GetRequiredTotalHeightBlocks(textByDirection, scale);
 
         return Math.Max(0, totalBlocksNeeded - BaseOccupiedHeightBlocks);
     }
@@ -632,10 +646,14 @@ public class BlockEntityMultiSignPost : BlockEntity
     {
         scale = Math.Max(0.01f, scale);
 
-        float poleHeight = GetScaledPoleHeight(scale);
-        float arrowHeight = GetHighestArrowTop(textByDirection, scale);
+        int highestRenderedSlotCount = GetHighestRenderedSlotCount(textByDirection);
 
-        return Math.Max(poleHeight, arrowHeight);
+        if (highestRenderedSlotCount <= 0)
+        {
+            return GetScaledPoleHeight(scale);
+        }
+
+        return GetHighestArrowTop(textByDirection, scale) + PoleTopPadding * scale;
     }
 
     public static int GetHighestRenderedSlotCount(List<string>[] textByDirection)
@@ -901,6 +919,131 @@ public class BlockEntityMultiSignPost : BlockEntity
         return GetRequiredVisualHeight(textByDirection, scale);
     }
 
+    private static int GetMaxAllowedExtraBlocks(int maxTotalHeightBlocks)
+    {
+        return Math.Max(
+            0,
+            Math.Min(HardMaxManagedExtensionBlocks, maxTotalHeightBlocks - BaseOccupiedHeightBlocks)
+        );
+    }
+
+    public MeshData GetBasePoleBlockModelMesh()
+    {
+        return CreateCubeMeshFromBoxes(GetBasePoleBoxes());
+    }
+
+    public MeshData GetExtensionPoleBlockModelMesh(BlockPos extensionPos)
+    {
+        return CreateCubeMeshFromBoxes(GetExtensionPoleBoxes(extensionPos));
+    }
+
+    public MeshData GetBasePoleDecalMesh(ITexPositionSource decalTexSource)
+    {
+        MeshData mesh = CreateCubeMeshFromBoxes(GetBasePoleBoxes());
+        ApplyDecalTexture(mesh, decalTexSource);
+        return mesh;
+    }
+
+    public MeshData GetExtensionPoleDecalMesh(BlockPos extensionPos, ITexPositionSource decalTexSource)
+    {
+        MeshData mesh = CreateCubeMeshFromBoxes(GetExtensionPoleBoxes(extensionPos));
+        ApplyDecalTexture(mesh, decalTexSource);
+        return mesh;
+    }
+
+    private static MeshData CreateCubeMeshFromBoxes(Cuboidf[] boxes)
+    {
+        MeshData result = new MeshData(24, 36);
+
+        if (boxes == null)
+        {
+            return result;
+        }
+
+        foreach (Cuboidf box in boxes)
+        {
+            float scaleH = (box.X2 - box.X1) / 2f;
+            float scaleV = (box.Y2 - box.Y1) / 2f;
+
+            if (scaleH <= 0 || scaleV <= 0)
+            {
+                continue;
+            }
+
+            Vec3f center = new Vec3f(
+                (box.X1 + box.X2) / 2f,
+                (box.Y1 + box.Y2) / 2f,
+                (box.Z1 + box.Z2) / 2f
+            );
+
+            MeshData cube = CubeMeshUtil.GetCubeOnlyScaleXyz(scaleH, scaleV, center);
+            cube.Rgba.Fill((byte)255);
+
+            result.AddMeshData(cube);
+        }
+
+        return result;
+    }
+
+    private static void ApplyDecalTexture(MeshData mesh, ITexPositionSource decalTexSource)
+    {
+        TextureAtlasPosition texPos = GetDecalTexturePosition(decalTexSource);
+
+        if (texPos == null || mesh?.Uv == null)
+        {
+            return;
+        }
+
+        float width = texPos.x2 - texPos.x1;
+        float height = texPos.y2 - texPos.y1;
+
+        for (int i = 0; i < mesh.VerticesCount; i++)
+        {
+            int uvIndex = i * 2;
+
+            float u = mesh.Uv[uvIndex];
+            float v = mesh.Uv[uvIndex + 1];
+
+            mesh.Uv[uvIndex] = texPos.x1 + width * u;
+            mesh.Uv[uvIndex + 1] = texPos.y1 + height * v;
+        }
+    }
+
+    private static TextureAtlasPosition GetDecalTexturePosition(ITexPositionSource decalTexSource)
+    {
+        if (decalTexSource == null)
+        {
+            return null;
+        }
+
+        string[] textureCodes =
+        {
+        "sign",
+        "all",
+        "crack",
+        "decal"
+    };
+
+        foreach (string textureCode in textureCodes)
+        {
+            try
+            {
+                TextureAtlasPosition texPos = decalTexSource[textureCode];
+
+                if (texPos != null)
+                {
+                    return texPos;
+                }
+            }
+            catch
+            {
+                // Try the next likely texture code.
+            }
+        }
+
+        return null;
+    }
+
     public Cuboidf[] GetBasePoleBoxes()
     {
         float visualHeight = GetRenderedPoleHeight(TextByDirection, signScale);
@@ -926,6 +1069,16 @@ public class BlockEntityMultiSignPost : BlockEntity
         );
     }
 
+    public Cuboidf[] GetBasePoleSelectionBoxes()
+    {
+        return InflateSelectionBoxes(GetBasePoleBoxes());
+    }
+
+    public Cuboidf[] GetExtensionPoleSelectionBoxes(BlockPos extensionPos)
+    {
+        return InflateSelectionBoxes(GetExtensionPoleBoxes(extensionPos));
+    }
+
     public Cuboidf GetBasePoleParticleBreakBox()
     {
         return FirstOrDefaultBox(GetBasePoleBoxes());
@@ -949,7 +1102,7 @@ public class BlockEntityMultiSignPost : BlockEntity
 
         float halfWidth = PoleHalfWidth * scale;
 
-        halfWidth = Math.Max(0.03125f, Math.Min(0.45f, halfWidth));
+        halfWidth = Math.Max(0.03125f, Math.Min(0.5f, halfWidth));
 
         return new[]
         {
@@ -962,6 +1115,34 @@ public class BlockEntityMultiSignPost : BlockEntity
                 0.5f + halfWidth
             )
         };
+    }
+
+    private static Cuboidf[] InflateSelectionBoxes(Cuboidf[] boxes)
+    {
+        if (boxes == null || boxes.Length == 0)
+        {
+            return boxes;
+        }
+
+        const float inflate = 0.002f;
+
+        Cuboidf[] result = new Cuboidf[boxes.Length];
+
+        for (int i = 0; i < boxes.Length; i++)
+        {
+            Cuboidf box = boxes[i];
+
+            result[i] = new Cuboidf(
+                Math.Max(-inflate, box.X1 - inflate),
+                Math.Max(-inflate, box.Y1 - inflate),
+                Math.Max(-inflate, box.Z1 - inflate),
+                Math.Min(1f + inflate, box.X2 + inflate),
+                Math.Min(1f + inflate, box.Y2 + inflate),
+                Math.Min(1f + inflate, box.Z2 + inflate)
+            );
+        }
+
+        return result;
     }
 
     private static Cuboidf FirstOrDefaultBox(Cuboidf[] boxes)

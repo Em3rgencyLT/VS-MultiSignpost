@@ -16,12 +16,17 @@
   "multisignpost:button-remove-empty": "Pašalinti Tuščius",
   "multisignpost:label-scale-slider": "Dydis",
 
-  "multisignpost:warning-extension-limit": "Šiam ženklui papildomai reikia {0} sekcijų(os), tačiau serverio limitas yra {1}.",
+  "multisignpost:warning-extension-limit": "Šiam ženklui reikia {0} kaladelės(ių), tačiau serverio limitas yra {1}.",
   "multisignpost:warning-not-enough-space": "Virš ženklo nepakanka tuščios erdvės. Reikia, kad {0} kaladėlė(s) virš ženklo būtų laisvos prieš išsaugant pakeitimus.",
-  "multisignpost:warning-will-create-extensions": "Šis ženklas išsiplės {0} kaladėle(ėmis) į viršų.",
+  "multisignpost:warning-will-create-extensions": "Šis ženklas bus {0} kaladėlės(ių) aukščio.",
 
-  "multisignpost:chat-extension-limit": "Šis ženklas viršija serverio maksimaliai leistiną papildomų sekcijų skaičių.",
+  "multisignpost:chat-extension-limit": "Šis ženklas viršija serverio maksimaliai leistiną aukštį.",
   "multisignpost:chat-not-enough-space": "Virš ženklo nepakanka tuščios erdvės.",
 
-  "placefailure-cant-place-multisignpost-extension": "Daugiarodylio ženklo papildomos sekcijos kaladėlės negali būti statomos rankiniu būdu."
+  "placefailure-cant-place-multisignpost-extension": "Daugiarodylio ženklo papildomos sekcijos kaladėlės negali būti statomos rankiniu būdu.",
+
+  "multisignpost:setting-MaxExtensions": "Maksimalus Kaladėlių Skaičius",
+  "multisignpost:setting-MinScale": "Maksimalus Dydis",
+  "multisignpost:setting-MaxScale": "Minimalus Dydis",
+  "multisignpost:setting-DefaultScale": "Pradinis Dydis"
 }
