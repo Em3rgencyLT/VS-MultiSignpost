@@ -1,5 +1,6 @@
 ﻿using Cairo;
 using MultiSignpost.Blocks;
+using MultiSignpost.Blocks.EntityMultiSignPost;
 using MultiSignpost.Config;
 using MultiSignpost.Enums;
 using System;
@@ -32,7 +33,7 @@ public class GuiDialogMultiSignPost : GuiDialogGeneric
 
     private readonly List<string>[] workingTextByDirection;
 
-    public Action<List<string>[], float> OnTextChanged;
+    public Action<List<string>[], float, string> OnTextChanged;
     public Action OnCloseCancel;
 
     private bool didSave;
@@ -45,19 +46,11 @@ public class GuiDialogMultiSignPost : GuiDialogGeneric
     private readonly float maxScale;
     private float currentScale;
 
-    private bool HasScaleSlider => MultiSignpostConfig.Current.HasScaleSlider();
+    private readonly string[] allowedFonts;
+    private string currentFont;
 
-    private static readonly string[] DirectionLabelKeys =
-    {
-        "multisignpost:direction-north",
-        "multisignpost:direction-northeast",
-        "multisignpost:direction-east",
-        "multisignpost:direction-southeast",
-        "multisignpost:direction-south",
-        "multisignpost:direction-southwest",
-        "multisignpost:direction-west",
-        "multisignpost:direction-northwest"
-    };
+    private bool HasScaleSlider => Math.Abs(maxScale - minScale) > 0.001f;
+    private bool HasFontDropdown => allowedFonts.Length > 1;
 
     public GuiDialogMultiSignPost(
         string dialogTitle,
@@ -69,7 +62,9 @@ public class GuiDialogMultiSignPost : GuiDialogGeneric
         int maxExtensions,
         float minScale,
         float maxScale,
-        float currentScale) : base(dialogTitle, capi)
+        float currentScale,
+        string currentFont,
+        string[] allowedFonts) : base(dialogTitle, capi)
     {
         this.maxExtensions = maxExtensions;
         this.blockEntityPos = blockEntityPos;
@@ -80,7 +75,11 @@ public class GuiDialogMultiSignPost : GuiDialogGeneric
         this.maxScale = Math.Max(minScale, maxScale);
         this.currentScale = ClampGuiScale(currentScale);
 
-        workingTextByDirection = BlockEntityMultiSignPost.CloneTextByDirection(textByDirection);
+        this.allowedFonts = MultiSignpostConfig.SanitizeAllowedFonts(allowedFonts);
+        this.currentFont = MultiSignpostConfig.NormalizeFontName(currentFont, this.allowedFonts);
+        this.signPostFont.WithFont(this.currentFont);
+
+        workingTextByDirection = TextData.Clone(textByDirection);
 
         ComposeDialog();
     }
@@ -110,8 +109,21 @@ public class GuiDialogMultiSignPost : GuiDialogGeneric
             double inputListHeight = Math.Max(InputAreaHeight, totalInputRows * InputRowHeight);
 
             double buttonsY = InputAreaY + InputAreaHeight + 10;
-            double scaleY = buttonsY + 35;
-            double warningY = HasScaleSlider ? scaleY + 50 : buttonsY + 35;
+            double nextControlY = buttonsY + 35;
+
+            double scaleY = nextControlY;
+            if (HasScaleSlider)
+            {
+                nextControlY += 60;
+            }
+
+            double fontY = nextControlY;
+            if (HasFontDropdown)
+            {
+                nextControlY += 35;
+            }
+
+            double warningY = nextControlY;
             double bottomButtonsY = warningY + 55;
 
             ElementBounds contentBounds = ElementBounds.Fixed(
@@ -160,6 +172,20 @@ public class GuiDialogMultiSignPost : GuiDialogGeneric
                 20
             );
 
+            ElementBounds fontLabelBounds = ElementBounds.Fixed(
+                0,
+                fontY,
+                180,
+                20
+            );
+
+            ElementBounds fontDropdownBounds = ElementBounds.Fixed(
+                180,
+                fontY - 2,
+                240,
+                25
+            );
+
             bgBounds.WithChildren(contentBounds);
 
             CairoFont warningFont = CairoFont.WhiteDetailText().WithColor(new double[] { 1, 0.55, 0.35, 1 });
@@ -176,7 +202,7 @@ public class GuiDialogMultiSignPost : GuiDialogGeneric
                 )
                 .BeginChildElements(bgBounds)
                     .AddStaticText(
-                        DirectionLabel(currentDirectionIndex),
+                        Lang.Get(Directions.GetLangKey(currentDirectionIndex)),
                         CairoFont.WhiteDetailText(),
                         ElementBounds.Fixed(0, DirectionTitleY, InputWidth, 22)
                     )
@@ -234,6 +260,24 @@ public class GuiDialogMultiSignPost : GuiDialogGeneric
                         OnScaleSliderChanged,
                         scaleSliderBounds,
                         "scaleSlider"
+                    );
+            }
+
+            if (HasFontDropdown)
+            {
+                SingleComposer
+                    .AddStaticText(
+                        Lang.Get("multisignpost:label-font"),
+                        CairoFont.WhiteDetailText(),
+                        fontLabelBounds
+                    )
+                    .AddDropDown(
+                        allowedFonts,
+                        allowedFonts,
+                        GetSelectedFontIndex(),
+                        OnFontDropdownChanged,
+                        fontDropdownBounds,
+                        "fontDropdown"
                     );
             }
 
@@ -295,14 +339,14 @@ public class GuiDialogMultiSignPost : GuiDialogGeneric
 
     private GuiTab[] CreateTabs()
     {
-        GuiTab[] tabs = new GuiTab[BlockEntityMultiSignPost.DirectionCount];
+        GuiTab[] tabs = new GuiTab[Constants.DirectionCount];
 
-        for (int directionIndex = 0; directionIndex < BlockEntityMultiSignPost.DirectionCount; directionIndex++)
+        for (int directionIndex = 0; directionIndex < Constants.DirectionCount; directionIndex++)
         {
             tabs[directionIndex] = new GuiTab
             {
                 DataInt = directionIndex,
-                Name = DirectionLabel(directionIndex)
+                Name = Lang.Get(Directions.GetLangKey(directionIndex))
             };
         }
 
@@ -348,7 +392,11 @@ public class GuiDialogMultiSignPost : GuiDialogGeneric
         firstVisibleInputIndex = 0;
 
         ComposeDialog();
-        OnTextChanged?.Invoke(BlockEntityMultiSignPost.CloneTextByDirection(workingTextByDirection), currentScale);
+        OnTextChanged?.Invoke(
+            TextData.Clone(workingTextByDirection),
+            currentScale,
+            currentFont
+        );
     }
 
     private void OnInputScrollbarValue(float value)
@@ -415,7 +463,11 @@ public class GuiDialogMultiSignPost : GuiDialogGeneric
             ClampVisibleInputsToTextWidth();
             SyncVisibleInputsToWorkingCopy();
 
-            OnTextChanged?.Invoke(BlockEntityMultiSignPost.CloneTextByDirection(workingTextByDirection), currentScale);
+            OnTextChanged?.Invoke(
+                TextData.Clone(workingTextByDirection),
+                currentScale,
+                currentFont
+            );
 
             UpdateValidationState();
         }
@@ -430,6 +482,7 @@ public class GuiDialogMultiSignPost : GuiDialogGeneric
         ImageSurface surface = new ImageSurface(Format.Argb32, 1, 1);
         Context ctx = new Context(surface);
 
+        signPostFont.WithFont(currentFont);
         signPostFont.SetupContext(ctx);
 
         int visibleInputCount = GetVisibleInputCount();
@@ -441,7 +494,9 @@ public class GuiDialogMultiSignPost : GuiDialogGeneric
             string currentText = textInput.GetText() ?? "";
 
             int safetyCounter = 0;
-            while (ctx.TextExtents(currentText).Width > 185 && currentText.Length > 0 && safetyCounter++ < 100)
+            while (ctx.TextExtents(currentText).Width > BlockEntityMultiSignPostRenderer.MaxTextPixelWidth
+                && currentText.Length > 0
+                && safetyCounter++ < 100)
             {
                 currentText = currentText.Substring(0, currentText.Length - 1);
             }
@@ -494,7 +549,11 @@ public class GuiDialogMultiSignPost : GuiDialogGeneric
 
         ComposeDialog();
 
-        OnTextChanged?.Invoke(BlockEntityMultiSignPost.CloneTextByDirection(workingTextByDirection), currentScale);
+        OnTextChanged?.Invoke(
+            TextData.Clone(workingTextByDirection),
+            currentScale,
+            currentFont
+        );
 
         return true;
     }
@@ -507,7 +566,7 @@ public class GuiDialogMultiSignPost : GuiDialogGeneric
 
         foreach (string text in workingTextByDirection[currentDirectionIndex])
         {
-            if (BlockEntityMultiSignPost.IsRenderedText(text))
+            if (TextData.IsRendered(text))
             {
                 cleaned.Add(text);
             }
@@ -520,16 +579,20 @@ public class GuiDialogMultiSignPost : GuiDialogGeneric
 
         ComposeDialog();
 
-        OnTextChanged?.Invoke(BlockEntityMultiSignPost.CloneTextByDirection(workingTextByDirection), currentScale);
+        OnTextChanged?.Invoke(
+            TextData.Clone(workingTextByDirection),
+            currentScale,
+            currentFont
+        );
 
         return true;
     }
 
     private void UpdateValidationState()
     {
-        List<string>[] normalized = BlockEntityMultiSignPost.NormalizeTextByDirection(workingTextByDirection);
+        List<string>[] normalized = TextData.Normalize(workingTextByDirection);
 
-        int requiredTotalHeightBlocks = BlockEntityMultiSignPost.GetRequiredTotalHeightBlocks(normalized, currentScale);
+        int requiredTotalHeightBlocks = Geometry.GetRequiredTotalHeightBlocks(normalized, currentScale);
         bool canSave = canSaveValidator(normalized, currentScale);
 
         string warningText = "";
@@ -570,7 +633,7 @@ public class GuiDialogMultiSignPost : GuiDialogGeneric
     {
         SyncVisibleInputsToWorkingCopy();
 
-        List<string>[] normalized = BlockEntityMultiSignPost.NormalizeTextByDirection(workingTextByDirection);
+        List<string>[] normalized = TextData.Normalize(workingTextByDirection);
 
         if (!canSaveValidator(normalized, currentScale))
         {
@@ -578,17 +641,11 @@ public class GuiDialogMultiSignPost : GuiDialogGeneric
             return false;
         }
 
-        byte[] data;
-
-        using (MemoryStream ms = new MemoryStream())
-        {
-            BinaryWriter writer = new BinaryWriter(ms);
-
-            BlockEntityMultiSignPost.WriteTextByDirection(writer, normalized);
-            writer.Write(currentScale);
-
-            data = ms.ToArray();
-        }
+        byte[] data = PacketCodec.WriteSaveText(
+            normalized,
+            currentScale,
+            currentFont
+        );
 
         capi.Network.SendBlockEntityPacket(blockEntityPos, (int)MultiSignPostPacketId.SaveText, data);
 
@@ -614,11 +671,6 @@ public class GuiDialogMultiSignPost : GuiDialogGeneric
         base.OnGuiClosed();
     }
 
-    private static string DirectionLabel(int directionIndex)
-    {
-        return Lang.Get(DirectionLabelKeys[directionIndex]);
-    }
-
     private bool OnScaleSliderChanged(int value)
     {
         if (suppressInputSync)
@@ -631,7 +683,11 @@ public class GuiDialogMultiSignPost : GuiDialogGeneric
         UpdateScaleDynamicText();
         SyncVisibleInputsToWorkingCopy();
 
-        OnTextChanged?.Invoke(BlockEntityMultiSignPost.CloneTextByDirection(workingTextByDirection), currentScale);
+        OnTextChanged?.Invoke(
+            TextData.Clone(workingTextByDirection),
+            currentScale,
+            currentFont
+        );
 
         UpdateValidationState();
 
@@ -664,5 +720,41 @@ public class GuiDialogMultiSignPost : GuiDialogGeneric
     private float ClampGuiScale(float scale)
     {
         return Math.Max(minScale, Math.Min(maxScale, scale));
+    }
+
+    private void OnFontDropdownChanged(string fontName, bool selected)
+    {
+        if (!selected || suppressInputSync)
+        {
+            return;
+        }
+
+        currentFont = MultiSignpostConfig.NormalizeFontName(fontName, allowedFonts);
+        signPostFont.WithFont(currentFont);
+
+        SyncVisibleInputsToWorkingCopy();
+        ClampVisibleInputsToTextWidth();
+        SyncVisibleInputsToWorkingCopy();
+
+        OnTextChanged?.Invoke(
+            TextData.Clone(workingTextByDirection),
+            currentScale,
+            currentFont
+        );
+
+        UpdateValidationState();
+    }
+
+    private int GetSelectedFontIndex()
+    {
+        for (int i = 0; i < allowedFonts.Length; i++)
+        {
+            if (string.Equals(allowedFonts[i], currentFont, StringComparison.OrdinalIgnoreCase))
+            {
+                return i;
+            }
+        }
+
+        return 0;
     }
 }

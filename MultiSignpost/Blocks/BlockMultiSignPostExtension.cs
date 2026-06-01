@@ -1,6 +1,7 @@
 ﻿using Vintagestory.API.Common;
 using Vintagestory.API.MathTools;
 using Vintagestory.API.Client;
+using MultiSignpost.Blocks.EntityMultiSignPost;
 
 namespace MultiSignpost.Blocks;
 
@@ -90,8 +91,8 @@ public class BlockMultiSignPostExtension : Block
 
         if (baseBe != null)
         {
-            blockModelData = baseBe.GetExtensionPoleBlockModelMesh(pos);
-            decalModelData = baseBe.GetExtensionPoleDecalMesh(pos, decalTexSource);
+            blockModelData = baseBe.PoleMeshFactory.GetExtensionPoleBlockModelMesh(pos);
+            decalModelData = baseBe.PoleMeshFactory.GetExtensionPoleDecalMesh(pos, decalTexSource);
             return;
         }
 
@@ -107,7 +108,7 @@ public class BlockMultiSignPostExtension : Block
 
         if (baseBe != null)
         {
-            return baseBe.GetExtensionPoleBoxes(pos);
+            return baseBe.PoleMeshFactory.GetExtensionPoleBoxes(pos);
         }
 
         return base.GetCollisionBoxes(blockAccessor, pos);
@@ -122,7 +123,7 @@ public class BlockMultiSignPostExtension : Block
 
         if (baseBe != null)
         {
-            return baseBe.GetExtensionPoleSelectionBoxes(pos);
+            return baseBe.PoleMeshFactory.GetExtensionPoleSelectionBoxes(pos);
         }
 
         return base.GetSelectionBoxes(blockAccessor, pos);
@@ -137,7 +138,7 @@ public class BlockMultiSignPostExtension : Block
 
         if (baseBe != null)
         {
-            return baseBe.GetExtensionPoleParticleBreakBox(pos);
+            return baseBe.PoleMeshFactory.GetExtensionPoleParticleBreakBox(pos);
         }
 
         return base.GetParticleBreakBox(blockAccess, pos, facing);

@@ -15,6 +15,7 @@
   "multisignpost:button-add-arrow": "+ Add Arrow",
   "multisignpost:button-remove-empty": "Remove Empty",
   "multisignpost:label-scale-slider": "Scale",
+  "multisignpost:label-font": "Font",
 
   "multisignpost:warning-extension-limit": "This sign post needs {0} block(s), but the server limit is {1}.",
   "multisignpost:warning-not-enough-space": "Not enough empty space above this sign post. It needs {0} block(s) to be clear above the base signpost before it can be saved.",

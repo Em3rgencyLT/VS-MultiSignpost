@@ -1,4 +1,5 @@
 ﻿using Cairo;
+using MultiSignpost.Blocks.EntityMultiSignPost;
 using System;
 using System.Collections.Generic;
 using Vintagestory.API.Client;
@@ -12,6 +13,8 @@ public class BlockEntityMultiSignPostRenderer : IRenderer
 {
     private const int TextWidth = 200;
     private const int TextHeight = 25;
+    public const double MaxTextPixelWidth = 175;
+    private const double MinimumAutoFontSize = 10;
 
     private const float QuadWidth = 0.7f;
     private const float QuadHeight = 0.1f;
@@ -28,7 +31,7 @@ public class BlockEntityMultiSignPostRenderer : IRenderer
 
     public Matrixf ModelMat = new Matrixf();
 
-    private List<string>[] textByDirection = BlockEntityMultiSignPost.CreateEmptyTextByDirection();
+    private List<string>[] textByDirection = TextData.CreateEmpty();
     private float signScale = 1f;
 
     public double RenderOrder => 0.5;
@@ -45,10 +48,15 @@ public class BlockEntityMultiSignPostRenderer : IRenderer
         api.Event.RegisterRenderer(this, EnumRenderStage.Opaque, "multisignpost");
     }
 
-    public void SetNewText(List<string>[] textByDirection, int color, float signScale = 1f)
+    public void SetNewText(List<string>[] textByDirection, int color, float signScale = 1f, string fontName = null)
     {
-        this.textByDirection = BlockEntityMultiSignPost.CloneTextByDirection(textByDirection);
+        this.textByDirection = TextData.Clone(textByDirection);
         this.signScale = Math.Max(0.01f, signScale);
+
+        if (!string.IsNullOrWhiteSpace(fontName))
+        {
+            font.WithFont(fontName);
+        }
 
         font.WithColor(ColorUtil.ToRGBADoubles(color));
         font.UnscaledFontsize = fontSize / RuntimeEnv.GUIScale;
@@ -73,18 +81,39 @@ public class BlockEntityMultiSignPostRenderer : IRenderer
 
         int line = 0;
 
-        for (int directionIndex = 0; directionIndex < BlockEntityMultiSignPost.DirectionCount; directionIndex++)
+        for (int directionIndex = 0; directionIndex < Constants.DirectionCount; directionIndex++)
         {
             foreach (string text in this.textByDirection[directionIndex])
             {
-                if (!BlockEntityMultiSignPost.IsRenderedText(text))
+                if (!TextData.IsRendered(text))
                 {
                     continue;
                 }
 
-                double lineWidth = font.GetTextExtents(text).Width;
+                double effectiveFontSize = fontSize / RuntimeEnv.GUIScale;
 
-                ctx.MoveTo((TextWidth - lineWidth) / 2, line * TextHeight + ctx.FontExtents.Ascent);
+                font.UnscaledFontsize = effectiveFontSize;
+                font.SetupContext(ctx);
+
+                TextExtents extents = ctx.TextExtents(text);
+
+                if (extents.Width > MaxTextPixelWidth)
+                {
+                    double shrinkFactor = MaxTextPixelWidth / extents.Width;
+                    effectiveFontSize = Math.Max(MinimumAutoFontSize / RuntimeEnv.GUIScale, effectiveFontSize * shrinkFactor);
+
+                    font.UnscaledFontsize = effectiveFontSize;
+                    font.SetupContext(ctx);
+
+                    extents = ctx.TextExtents(text);
+                }
+
+                double x = (TextWidth - extents.Width) / 2 - extents.XBearing;
+
+                double rowTop = line * TextHeight;
+                double y = rowTop + (TextHeight - extents.Height) / 2 - extents.YBearing;
+
+                ctx.MoveTo(x, y);
                 ctx.ShowText(text);
 
                 line++;
@@ -100,6 +129,8 @@ public class BlockEntityMultiSignPostRenderer : IRenderer
 
         surface.Dispose();
         ctx.Dispose();
+
+        font.UnscaledFontsize = fontSize / RuntimeEnv.GUIScale;
 
         GenerateMesh();
     }
@@ -119,19 +150,19 @@ public class BlockEntityMultiSignPostRenderer : IRenderer
 
         int signNumber = 0;
 
-        for (int directionIndex = 0; directionIndex < BlockEntityMultiSignPost.DirectionCount; directionIndex++)
+        for (int directionIndex = 0; directionIndex < Constants.DirectionCount; directionIndex++)
         {
             for (int slotIndex = 0; slotIndex < textByDirection[directionIndex].Count; slotIndex++)
             {
                 string text = textByDirection[directionIndex][slotIndex];
 
-                if (!BlockEntityMultiSignPost.IsRenderedText(text))
+                if (!TextData.IsRendered(text))
                 {
                     continue;
                 }
 
-                float rotY = BlockEntityMultiSignPost.GetTextRotationY(directionIndex);
-                float yOffset = BlockEntityMultiSignPost.GetVerticalOffset(slotIndex);
+                float rotY = Directions.GetTextRotationY(directionIndex);
+                float yOffset = Geometry.GetVerticalOffset(slotIndex);
                 float yPosition = 1.39f + yOffset;
 
                 MeshData modelData = QuadMeshUtil.GetQuad();
@@ -202,7 +233,7 @@ public class BlockEntityMultiSignPostRenderer : IRenderer
     {
         int count = 0;
 
-        for (int directionIndex = 0; directionIndex < BlockEntityMultiSignPost.DirectionCount; directionIndex++)
+        for (int directionIndex = 0; directionIndex < Constants.DirectionCount; directionIndex++)
         {
             count += BlockEntityMultiSignPost.CountRenderedTexts(textByDirection[directionIndex]);
         }

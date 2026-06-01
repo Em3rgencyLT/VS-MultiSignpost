@@ -1,4 +1,5 @@
 ﻿using MultiSignpost.Blocks;
+using MultiSignpost.Blocks.EntityMultiSignPost;
 using MultiSignpost.Config;
 using System;
 using System.Reflection;

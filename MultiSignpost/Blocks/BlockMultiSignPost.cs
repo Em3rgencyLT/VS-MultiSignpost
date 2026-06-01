@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using MultiSignpost.Blocks.EntityMultiSignPost;
+using System.Collections.Generic;
 using Vintagestory.API.Client;
 using Vintagestory.API.Common;
 using Vintagestory.API.MathTools;
@@ -124,7 +125,7 @@ public class BlockMultiSignPost : Block
     {
         if (blockAccessor.GetBlockEntity(pos) is BlockEntityMultiSignPost be)
         {
-            return be.GetBasePoleBoxes();
+            return be.PoleMeshFactory.GetBasePoleBoxes();
         }
 
         return base.GetCollisionBoxes(blockAccessor, pos);
@@ -134,7 +135,7 @@ public class BlockMultiSignPost : Block
     {
         if (blockAccessor.GetBlockEntity(pos) is BlockEntityMultiSignPost be)
         {
-            return be.GetBasePoleSelectionBoxes();
+            return be.PoleMeshFactory.GetBasePoleSelectionBoxes();
         }
 
         return base.GetSelectionBoxes(blockAccessor, pos);
@@ -144,7 +145,7 @@ public class BlockMultiSignPost : Block
     {
         if (blockAccess.GetBlockEntity(pos) is BlockEntityMultiSignPost be)
         {
-            return be.GetBasePoleParticleBreakBox();
+            return be.PoleMeshFactory.GetBasePoleParticleBreakBox();
         }
 
         return base.GetParticleBreakBox(blockAccess, pos, facing);
@@ -159,8 +160,8 @@ public class BlockMultiSignPost : Block
     {
         if (world.BlockAccessor.GetBlockEntity(pos) is BlockEntityMultiSignPost be)
         {
-            blockModelData = be.GetBasePoleBlockModelMesh();
-            decalModelData = be.GetBasePoleDecalMesh(decalTexSource);
+            blockModelData = be.PoleMeshFactory.GetBasePoleBlockModelMesh();
+            decalModelData = be.PoleMeshFactory.GetBasePoleDecalMesh(decalTexSource);
             return;
         }
 

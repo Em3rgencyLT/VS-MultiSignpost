@@ -15,6 +15,7 @@
   "multisignpost:button-add-arrow": "+ Pridėti Rodyklę",
   "multisignpost:button-remove-empty": "Pašalinti Tuščius",
   "multisignpost:label-scale-slider": "Dydis",
+  "multisignpost:label-font": "Šriftas",
 
   "multisignpost:warning-extension-limit": "Šiam ženklui reikia {0} kaladelės(ių), tačiau serverio limitas yra {1}.",
   "multisignpost:warning-not-enough-space": "Virš ženklo nepakanka tuščios erdvės. Reikia, kad {0} kaladėlė(s) virš ženklo būtų laisvos prieš išsaugant pakeitimus.",
@@ -26,7 +27,7 @@
   "placefailure-cant-place-multisignpost-extension": "Daugiarodylio ženklo papildomos sekcijos kaladėlės negali būti statomos rankiniu būdu.",
 
   "multisignpost:setting-MaxExtensions": "Maksimalus Kaladėlių Skaičius",
-  "multisignpost:setting-MinScale": "Maksimalus Dydis",
-  "multisignpost:setting-MaxScale": "Minimalus Dydis",
+  "multisignpost:setting-MinScale": "Minimalus Dydis",
+  "multisignpost:setting-MaxScale": "Maksimalus Dydis",
   "multisignpost:setting-DefaultScale": "Pradinis Dydis"
 }
